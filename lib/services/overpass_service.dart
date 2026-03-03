@@ -1,11 +1,16 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
-import 'package:webgis_app/models/place.dart';
+import 'package:webgis_app/models/place.dart'; // Ajuste o caminho se necessário
 
 class OverpassService {
-  static const String overpassInterpreterUrl =
-      'https://overpass-api.de/api/interpreter';
+  // Lista de servidores Overpass (Fallbacks). Se um falhar, tenta o próximo.
+  static const List<String> _endpoints = [
+    'https://overpass-api.de/api/interpreter',
+    'https://overpass.kumi.systems/api/interpreter',
+    'https://lz4.overpass-api.de/api/interpreter',
+  ];
 
   final Distance _distance = const Distance();
 
@@ -16,23 +21,58 @@ class OverpassService {
     LatLng? userPositionForDistance,
   }) async {
     final query = _buildQuery(center, radiusMeters, categories);
+    final bodyStr = 'data=${Uri.encodeQueryComponent(query)}';
 
-    final resp = await http.post(
-      Uri.parse(overpassInterpreterUrl),
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-      },
-      body: 'data=${Uri.encodeQueryComponent(query)}',
-    );
+    http.Response? lastResponse;
+    Exception? lastException;
 
-    if (resp.statusCode != 200) {
-      throw Exception('Overpass erro ${resp.statusCode}: ${resp.body}');
+    for (final endpoint in _endpoints) {
+      try {
+        final resp = await http.post(
+          Uri.parse(endpoint),
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+          },
+          body: bodyStr,
+        ).timeout(const Duration(seconds: 15)); 
+
+        if (resp.statusCode == 200) {
+          return _parseResponse(resp.body, center, categories, userPositionForDistance);
+        } else if (resp.statusCode == 429) {
+          lastResponse = resp;
+          continue; 
+        } else {
+          lastResponse = resp;
+          continue;
+        }
+      } on TimeoutException catch (e) {
+        lastException = e;
+        continue; 
+      } catch (e) {
+        lastException = e as Exception;
+        continue;
+      }
     }
 
-    final decoded = json.decode(resp.body) as Map<String, dynamic>;
-    final elements = (decoded['elements'] as List).cast<Map<String, dynamic>>();
+    if (lastResponse?.statusCode == 429) {
+      throw Exception('erro_429');
+    } else if (lastException is TimeoutException) {
+      throw Exception('timeout');
+    } else {
+      throw Exception('Falha ao conectar aos servidores do mapa.');
+    }
+  }
 
-    final origin = userPositionForDistance ?? center;
+  List<Place> _parseResponse(
+    String responseBody,
+    LatLng searchCenter,
+    Set<PlaceCategory> categories,
+    LatLng? userPos,
+  ) {
+    final decoded = json.decode(responseBody) as Map<String, dynamic>;
+    final elements = (decoded['elements'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+
+    final origin = userPos ?? searchCenter;
     final places = <Place>[];
 
     for (final el in elements) {
@@ -103,7 +143,7 @@ class OverpassService {
     }
 
     return '''
-      [out:json][timeout:25];
+      [out:json][timeout:15];
       (
       ${parts.join('\n')}
       );

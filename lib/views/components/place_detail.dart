@@ -20,55 +20,114 @@ class PlaceDetailsSheet extends StatelessWidget {
 
     String? address;
     if (addrStreet != null && addrStreet.isNotEmpty) {
-      address = addrStreet + (addrNumber != null && addrNumber.isNotEmpty ? ', $addrNumber' : '');
+      address = '$addrStreet${addrNumber != null && addrNumber.isNotEmpty ? ', $addrNumber' : ''}';
     }
 
     return Container(
-      constraints: const BoxConstraints(maxHeight: 260),
-      margin: const EdgeInsets.all(12),
-      child: Card(
-        elevation: 10,
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      place.name,
-                      style: Theme.of(context).textTheme.titleLarge,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+      constraints: const BoxConstraints(maxHeight: 280),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.15),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Puxador visual (Drag handle)
+          Center(
+            child: Container(
+              margin: const EdgeInsets.only(top: 12, bottom: 8),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade400,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+          ),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            place.name,
+                            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${place.category.label} • ${(place.distanceMeters / 1000).toStringAsFixed(2)} km',
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.primary,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton.filledTonal(
+                      tooltip: 'Fechar',
+                      onPressed: onClose,
+                      icon: const Icon(Icons.close),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                if (address != null) _buildInfoRow(context, Icons.location_on_outlined, address),
+                if (cuisine != null && cuisine.isNotEmpty) _buildInfoRow(context, Icons.restaurant_menu, cuisine),
+                if (opening != null && opening.isNotEmpty) _buildInfoRow(context, Icons.access_time, opening),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: onClose,
+                    icon: const Icon(Icons.list),
+                    label: const Text('Voltar à lista'),
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                   ),
-                  IconButton(
-                    tooltip: 'Fechar',
-                    onPressed: onClose,
-                    icon: const Icon(Icons.close),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Text('${place.category.label} • ${(place.distanceMeters / 1000).toStringAsFixed(2)} km'),
-              const SizedBox(height: 12),
-              if (address != null) Text('Endereço: $address'),
-              if (cuisine != null && cuisine.isNotEmpty) Text('Cozinha: $cuisine'),
-              if (opening != null && opening.isNotEmpty) Text('Horário: $opening'),
-              const Spacer(),
-              Row(
-                children: [
-                  FilledButton.tonalIcon(
-                    onPressed: onClose,
-                    icon: const Icon(Icons.place),
-                    label: const Text('Voltar à lista'),
-                  ),
-                ],
-              ),
-            ],
+                ),
+              ],
+            ),
           ),
-        ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(BuildContext context, IconData icon, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 20, color: Theme.of(context).colorScheme.onSurfaceVariant),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              text,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+            ),
+          ),
+        ],
       ),
     );
   }
